@@ -116,7 +116,9 @@ class L10nBeVatDeclaration(models.TransientModel):
         )
 
         self._validate_xmlschema(xml_string, "NewTVA-in_v0_9.xsd")
-        self.file_name = "vat_declaration_%s.xml" % self.period
+        self.file_name = "{nbr}_vat_declaration_{period}.xml".format(
+            nbr=self._get_company_vat(), period=self.period
+        )
         self.file_save = base64.encodebytes(xml_string)
 
         return self._action_save_xml()
@@ -343,7 +345,7 @@ class L10nBeVatDeclaration(models.TransientModel):
             + _("Value left")
             + " = {left}, "
             + _("Value right")
-            + "= {right}"
+            + " = {right}"
         )
 
         control = "[01] * 6% + [02] * 12% + [03] * 21% = [54]"
@@ -426,12 +428,17 @@ class L10nBeVatDeclaration(models.TransientModel):
             left="{:.2f}".format(vl), right="{:.2f}".format(vr)
         )
 
-        control = "[55] > 0 if [86] or [88] > 0"
+        control = "[55] > 0 if ([86] or [88]) > 0"
         self.controls += "\n"
-        if (cvalues["86"] + cvalues["88"]) and cround(cvalues["55"]) > 0:
-            self.controls += passed + " : " + control
-        else:
+        vl = cround(cvalues["55"])
+        vr = cround(cvalues["86"] + cvalues["88"])
+        if vr and not vl:
             self.controls += failed + " : " + control
+        else:
+            self.controls += passed + " : " + control
+        self.controls += control_vals.format(
+            left="{:.2f}".format(vl), right="{:.2f}".format(vr)
+        )
 
     def _node_VATDeclaration(self, parent, ns_map, ref):
 
